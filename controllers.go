@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -238,41 +237,6 @@ func getProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateProduct(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("token")
-	if err != nil {
-		if err == http.ErrNoCookie {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	tonkenStr := cookie.Value
-
-	tkn, err := jwt.Parse(tonkenStr, func(t *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	})
-
-	if err != nil {
-		if err == jwt.ErrSignatureInvalid {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.WriteHeader(http.StatusBadRequest)
-	}
-
-	if !tkn.Valid {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	claims := tkn.Claims.(jwt.MapClaims)
-
-	if claims["role"] != "admin" {
-		fmt.Fprintln(w, "You are not admin")
-		return
-	}
 	vars := mux.Vars(r)
 	productID := vars["id"]
 
@@ -293,4 +257,19 @@ func updateProduct(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, "Update Successful")
+}
+
+func deleteProduct(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idProductDelete := vars["id"]
+
+	_, err := db.Exec("DELETE FROM product Where id = ?", idProductDelete)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "Delete Successful")
 }

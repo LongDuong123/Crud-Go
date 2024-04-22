@@ -1,7 +1,8 @@
 package main
 
 import (
-	// "net/http"
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -23,17 +24,44 @@ func createJWTKey(userName string, expirationTime time.Time, Role string) (strin
 	return tokenString, nil
 }
 
-// func VerifyToken(cookie *http.Cookie){
-// 	tokenCookie := cookie.Value
+func VerifyToken(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token, err := r.Cookie("token")
+		if err != nil {
+			if err == http.ErrNoCookie {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
-// 	tkn, err := jwt.Parse(tokenCookie, func(t *jwt.Token) (interface{},error) {
-// 		return jwtKey, nil
-// 	})
+		tokenString := token.Value
 
-// 	if err != nil {
-// 		if err == jwt.ErrSignatureInvalid {
+		tkn, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+			return jwtKey, nil
+		})
+		if err != nil {
+			if err == jwt.ErrSignatureInvalid {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
-// 		}
-// 	}
+		if !tkn.Valid {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
-// }
+		claim := tkn.Claims.(jwt.MapClaims)
+
+		if claim["role"] != "admin" {
+			fmt.Fprintln(w, "You are not admin")
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
