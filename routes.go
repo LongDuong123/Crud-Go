@@ -9,6 +9,6 @@ func RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/users/{id}", updateUser).Methods("PUT")
 	r.HandleFunc("/productAll", getProductAll).Methods("GET")
 	r.HandleFunc("/product", getProduct).Methods("GET")
-	r.HandleFunc("/product/{id}", VerifyToken(updateProduct)).Methods("PUT")
-	r.HandleFunc("/product/{id}", VerifyToken(deleteProduct)).Methods("DELETE")
+	r.HandleFunc("/product/{id}", MiddleWare(updateProduct, loginUser)).Methods("PUT")
+	r.HandleFunc("/product/{id}", MiddleWare(deleteProduct, loginUser)).Methods("DELETE")
 }

@@ -34,26 +34,24 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	err1 := bcrypt.CompareHashAndPassword([]byte(check), []byte(credentitals.Password))
-	if err1 != nil {
+	err = bcrypt.CompareHashAndPassword([]byte(check), []byte(credentitals.Password))
+	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprintln(w, "Incorrect password")
 		return
 	}
 
-	expirationTime := time.Now().Add(time.Hour * 24)
-	accessToken, err := createJWTKey(credentitals.Email, expirationTime, credentitals.Role)
+	err = createTokenAndSetCookie(credentitals.Email, time.Now().Add(time.Hour*1), credentitals.Role, "AccessToken", w)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	cookie := http.Cookie{
-		Name:    "token",
-		Value:   accessToken,
-		Expires: expirationTime,
+	err = createTokenAndSetCookie(credentitals.Name, time.Now().Add(time.Hour*24), credentitals.Role, "RefreshToken", w)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	http.SetCookie(w, &cookie)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -215,7 +213,7 @@ func getProduct(w http.ResponseWriter, r *http.Request) {
 
 	startPage := (pageSize - 1) * pageNumber
 
-	getDataProductPage, err := db.Query("SELECT * FROM product WHERE id >= $1 AND id <= $2", startPage, startPage+pageNumber)
+	getDataProductPage, err := db.Query("SELECT * FROM product WHERE id >= ? AND id <= ?", startPage, startPage+pageNumber)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -248,7 +246,7 @@ func updateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err2 := db.Exec("UPDATE product SET name = $1 , image_url = $2 , price = ? WHERE id = ?", update_Product.Name, update_Product.Image_url, update_Product.Price, productID)
+	_, err2 := db.Exec("UPDATE product SET name = ? , image_url = ? , price = ? WHERE id = ?", update_Product.Name, update_Product.Image_url, update_Product.Price, productID)
 
 	if err2 != nil {
 		http.Error(w, err2.Error(), http.StatusInternalServerError)

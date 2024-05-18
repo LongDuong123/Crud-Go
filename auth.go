@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -10,7 +9,7 @@ import (
 
 var jwtKey = []byte("secret_key")
 
-func createJWTKey(userName string, expirationTime time.Time, Role string) (string, error) {
+func createTokenAndSetCookie(userName string, expirationTime time.Time, Role string, typeToken string, w http.ResponseWriter) error {
 	claim := jwt.MapClaims{
 		"user_Name": userName,
 		"role":      Role,
@@ -19,49 +18,70 @@ func createJWTKey(userName string, expirationTime time.Time, Role string) (strin
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
 	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return tokenString, nil
+
+	cookie := http.Cookie{
+		Name:    typeToken,
+		Value:   tokenString,
+		Expires: expirationTime,
+	}
+
+	http.SetCookie(w, &cookie)
+	return nil
 }
 
-func VerifyToken(next http.HandlerFunc) http.HandlerFunc {
+func MiddleWare(next http.HandlerFunc, nextNoAuth http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := r.Cookie("token")
-		if err != nil {
-			if err == http.ErrNoCookie {
-				w.WriteHeader(http.StatusUnauthorized)
+		accessToken, err1 := verifyToken(r, "AccessToken")
+		refreshToken, err2 := verifyToken(r, "RefreshToken")
+		if !err1 && !err2 {
+			nextNoAuth.ServeHTTP(w, r)
+			return
+		} else if !err1 && err2 {
+			claim := refreshToken.Claims.(jwt.MapClaims)
+			err := createTokenAndSetCookie(claim["user_Name"].(string), time.Now().Add(time.Hour*1), claim["role"].(string), "AccessToken", w)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
 
-		tokenString := token.Value
-
-		tkn, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-			return jwtKey, nil
-		})
-		if err != nil {
-			if err == jwt.ErrSignatureInvalid {
-				w.WriteHeader(http.StatusUnauthorized)
+			err = createTokenAndSetCookie(claim["user_Name"].(string), time.Now().Add(time.Hour*24), claim["role"].(string), "RefreshToken", w)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			w.WriteHeader(http.StatusBadRequest)
+			if claim["role"] != "admin" {
+				return
+			}
+			next.ServeHTTP(w, r)
 			return
 		}
-
-		if !tkn.Valid {
-			w.WriteHeader(http.StatusUnauthorized)
+		Claims := accessToken.Claims.(jwt.MapClaims)
+		if Claims["role"] != "admin" {
 			return
 		}
-
-		claim := tkn.Claims.(jwt.MapClaims)
-
-		if claim["role"] != "admin" {
-			fmt.Fprintln(w, "You are not admin")
-			return
-		}
-
 		next.ServeHTTP(w, r)
 	})
+}
+
+func verifyToken(r *http.Request, nameToken string) (*jwt.Token, bool) {
+	token, err := r.Cookie(nameToken)
+	if err != nil {
+		return nil, false
+	}
+
+	tokenString := token.Value
+
+	tkn, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+	if err != nil {
+		return nil, false
+	}
+
+	if !tkn.Valid {
+		return nil, false
+	}
+	return tkn, true
 }
