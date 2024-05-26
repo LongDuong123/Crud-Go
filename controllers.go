@@ -1,15 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var ctx = context.Background()
 
 func loginUser(w http.ResponseWriter, r *http.Request) {
 
@@ -177,6 +181,47 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Update Successful")
 }
 
+func getUser(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idGetUser := vars["id"]
+	getUserInRedis, err := rdb.Get(ctx, idGetUser).Result()
+	var getUser User
+	if err == redis.Nil {
+		getUserInSql, err1 := db.Query("SELECT name , age , gender FROM users WHERE id = ?", idGetUser)
+		if err1 != nil {
+			http.Error(w, err1.Error(), http.StatusInternalServerError)
+			return
+		}
+		if getUserInSql.Next() {
+			err1 := getUserInSql.Scan(&getUser.Name, &getUser.Age, &getUser.Gender)
+			if err1 != nil {
+				http.Error(w, err1.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		userJson, err1 := json.Marshal(getUser)
+		if err1 != nil {
+			http.Error(w, err1.Error(), http.StatusInternalServerError)
+			return
+		}
+		err1 = rdb.Set(ctx, idGetUser, userJson, 0).Err()
+		if err1 != nil {
+			http.Error(w, err1.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	} else {
+		err1 := json.Unmarshal([]byte(getUserInRedis), &getUser)
+		if err1 != nil {
+			http.Error(w, err1.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	json.NewEncoder(w).Encode(getUser)
+}
+
 func getProductAll(w http.ResponseWriter, r *http.Request) {
 
 	getDatabaseProduct, err := db.Query("SELECT * FROM product")
@@ -211,25 +256,49 @@ func getProduct(w http.ResponseWriter, r *http.Request) {
 	pageSize, _ := strconv.Atoi(pageSizeStr)
 	pageNumber, _ := strconv.Atoi(pageNumberStr)
 
-	startPage := (pageSize - 1) * pageNumber
-
-	getDataProductPage, err := db.Query("SELECT * FROM product WHERE id >= ? AND id <= ?", startPage, startPage+pageNumber)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	getProductByPage, err := rdb.Get(ctx, "productPage:"+pageNumberStr).Result()
 
 	var getProductPage []Product
-	for getDataProductPage.Next() {
-		var product Product
-		err := getDataProductPage.Scan(&product.ID, &product.Name, &product.Image_url, &product.Price, &product.Create_By)
+	if err == redis.Nil {
+		startPage := (pageNumber-1)*pageSize + 1
+
+		getDataProductPage, err := db.Query("SELECT * FROM product WHERE id >= ? AND id <= ?", startPage, startPage+pageSize-1)
+
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		getProductPage = append(getProductPage, product)
+
+		for getDataProductPage.Next() {
+			var product Product
+			err := getDataProductPage.Scan(&product.ID, &product.Name, &product.Image_url, &product.Price, &product.Create_By)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			getProductPage = append(getProductPage, product)
+		}
+		jsonProductPage, err1 := json.Marshal(getProductPage)
+		if err1 != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		err1 = rdb.Set(ctx, "productPage:"+pageNumberStr, jsonProductPage, 0).Err()
+		if err1 != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	} else if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	} else {
+		err := json.Unmarshal([]byte(getProductByPage), &getProductPage)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
+
 	jsonData, _ := json.MarshalIndent(getProductPage, "", "  ")
 	w.Write(jsonData)
 }

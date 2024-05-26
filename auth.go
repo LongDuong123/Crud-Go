@@ -39,6 +39,13 @@ func MiddleWare(next http.HandlerFunc, nextNoAuth http.HandlerFunc) http.Handler
 			nextNoAuth.ServeHTTP(w, r)
 			return
 		} else if !err1 && err2 {
+			deleteCookieRefreshToken, err3 := r.Cookie("RefreshToken")
+			if err3 != nil {
+				return
+			}
+			deleteCookieRefreshToken.MaxAge = -1
+			http.SetCookie(w, deleteCookieRefreshToken)
+
 			claim := refreshToken.Claims.(jwt.MapClaims)
 			err := createTokenAndSetCookie(claim["user_Name"].(string), time.Now().Add(time.Hour*1), claim["role"].(string), "AccessToken", w)
 			if err != nil {
