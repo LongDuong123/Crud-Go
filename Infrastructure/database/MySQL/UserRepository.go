@@ -2,6 +2,7 @@ package mysql
 
 import (
 	domain "crud/Domain"
+	"crud/helpers"
 	"database/sql"
 )
 
@@ -20,10 +21,14 @@ func (ur *UserRepository) GetByID(id int) (*domain.User, error) {
 	}
 	var getUser domain.User
 	if user.Next() {
-		err := user.Scan(&getUser.ID, &getUser.Name, &getUser.Age, &getUser.Gender, &getUser.Email, &getUser.Role, &getUser.Password)
+		var age sql.NullInt64
+		var gender sql.NullString
+		err := user.Scan(&getUser.ID, &getUser.Name, &age, &gender, &getUser.Email, &getUser.Role, &getUser.Password)
 		if err != nil {
 			return nil, err
 		}
+		getUser.Age = helpers.NullInt64ToInt(age)
+		getUser.Gender = helpers.NullStringToString(gender)
 	}
 	return &getUser, nil
 }
@@ -53,15 +58,13 @@ func (ur *UserRepository) GetByEmail(email string) (*domain.User, error) {
 	var getUser domain.User
 	if user.Next() {
 		var age sql.NullInt64
-		err := user.Scan(&getUser.ID, &getUser.Name, &age, &getUser.Gender, &getUser.Email, &getUser.Role, &getUser.Password)
+		var gender sql.NullString
+		err := user.Scan(&getUser.ID, &getUser.Name, &age, &gender, &getUser.Email, &getUser.Role, &getUser.Password)
 		if err != nil {
 			return nil, err
 		}
-		if age.Valid {
-			getUser.Age = int(age.Int64)
-		} else {
-			getUser.Age = 0
-		}
+		getUser.Age = helpers.NullInt64ToInt(age)
+		getUser.Gender = helpers.NullStringToString(gender)
 	}
 	return &getUser, nil
 }
@@ -78,7 +81,9 @@ func (ur *UserRepository) CheckEmail(email string) (bool, error) {
 }
 
 func (ur *UserRepository) Create(user *domain.User) error {
-	_, err := ur.db.Mysql.Exec("INSERT INTO users (name,email,password) VALUES (?,?,?)", user.Name, user.Email, user.Password)
+	age := helpers.IntToInt64Null(int64(user.Age))
+	gender := helpers.StringToNullString(user.Gender)
+	_, err := ur.db.Mysql.Exec("INSERT INTO users (name,age,gender,email,password) VALUES (?,?,?,?,?)", user.Name, age, gender, user.Email, user.Password)
 	if err != nil {
 		return err
 	}

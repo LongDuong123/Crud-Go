@@ -30,7 +30,7 @@ func (lc *LoginController) LoginUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	ok := lc.LoginUseCase.CheckPassword(UserLogin.Password, User.Password)
+	ok := lc.LoginUseCase.CheckPassword(User.Password, UserLogin.Password)
 	if !ok {
 		http.Error(w, "Wrong Password", http.StatusBadRequest)
 		return

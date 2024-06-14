@@ -38,9 +38,17 @@ func (pr *productUseCase) Create(product *domain.Product) error {
 }
 
 func (pr *productUseCase) UpdateByID(id int, product *domain.Product) error {
+	err := pr.RepositoryRedis.Create(product)
+	if err != nil {
+		return err
+	}
 	return pr.Repository.UpdateByID(id, product)
 }
 
 func (pr *productUseCase) DeleteByID(id int) error {
+	err := pr.RepositoryRedis.DeleteByID(id)
+	if err != nil {
+		return err
+	}
 	return pr.Repository.DeleteByID(id)
 }

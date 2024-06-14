@@ -45,7 +45,7 @@ func (ur *ProductRepository) GetByPage(start int, end int) ([]domain.Product, er
 }
 
 func (ur *ProductRepository) Create(Product *domain.Product) error {
-	_, err := ur.db.Mysql.Exec("INSERT INTO product (name,img,price,is_create_by) VALUES (?,?,?,?)", Product.Name, Product.Image_url, Product.Price, Product.Create_By)
+	_, err := ur.db.Mysql.Exec("INSERT INTO product (name,image_url,price,is_created_by) VALUES (?,?,?,?)", Product.Name, Product.Image_url, Product.Price, Product.Create_By)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func (ur *ProductRepository) Create(Product *domain.Product) error {
 }
 
 func (ur *ProductRepository) UpdateByID(id int, Product *domain.Product) error {
-	_, err := ur.db.Mysql.Exec("UPDATE product SET name = ?, img = ?, price = ?, is_create_by = ? WHERE id = ?", Product.Name, Product.Image_url, Product.Price, Product.Create_By, id)
+	_, err := ur.db.Mysql.Exec("UPDATE product SET name = ?, image_url = ?, price = ?, is_created_by = ? WHERE id = ?", Product.Name, Product.Image_url, Product.Price, Product.Create_By, id)
 	if err != nil {
 		return err
 	}
