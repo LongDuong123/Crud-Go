@@ -11,7 +11,7 @@ type databaseMySQL struct {
 }
 
 func ConnnectMySql() (*databaseMySQL, error) {
-	mySql, err := sql.Open("mysql", "root:admin123@/mydb")
+	mySql, err := sql.Open("mysql", "root:admin123@tcp(mysql-container:3306)/mydb")
 
 	if err != nil {
 		return nil, err
