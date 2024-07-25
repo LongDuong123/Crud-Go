@@ -14,7 +14,7 @@ type ProductRepositoryByRedis struct {
 	Databaseredis *databaseRedis
 }
 
-func NewProductRepositoryByRedis(dbr *databaseRedis) domain.ProductInteractor {
+func NewProductRepositoryByRedis(dbr *databaseRedis) domain.ProductRepository {
 	return &ProductRepositoryByRedis{Databaseredis: dbr}
 }
 

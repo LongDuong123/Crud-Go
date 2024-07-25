@@ -2,13 +2,13 @@ CREATE DATABASE IF NOT EXISTS mydb;
 USE mydb;
 
 -- Tạo bảng User
-CREATE TABLE IF NOT EXISTS user (
+CREATE TABLE IF NOT EXISTS users (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255),
     age INT,
     gender VARCHAR(10),
     email VARCHAR(255),
-    role VARCHAR(10),
+    role VARCHAR(10) DEFAULT 'user',
     password VARCHAR(255)
 );
 
@@ -22,11 +22,11 @@ CREATE TABLE IF NOT EXISTS product (
 );
 
 -- Chèn dữ liệu người dùng John vào bảng User
-INSERT INTO user (id, name, age, gender, email, role, password)
+INSERT INTO users (id, name, age, gender, email, role, password)
 VALUES (1, 'John', 18, 'male', 'john@example.com', 'user', '$2a$10$sWfmvprYwVt.u5sQlm02aeQTO0HakmNlrGPzwFs05E3BiQeKlHRmq');
 
 -- Chèn dữ liệu người dùng Duong vào bảng User
-INSERT INTO user (id, name, email, role, password)
+INSERT INTO users (id, name, email, role, password)
 VALUES (4, 'Duong', 'Duong@example.com', 'user', '$2a$10$Mch6rD2qYIodLXrm3x5t.ubfTg3ahdKj7K7mVZ.AyYsVUyfwvEhsW');
 
 -- Chèn dữ liệu sản phẩm vào bảng Product
